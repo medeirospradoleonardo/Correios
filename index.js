@@ -109,17 +109,36 @@ const index = async () => {
           })
 
           let status = evento.status
-
           switch (status) {
             case 'Objeto encaminhado':
-              const origem = evento.local
-                .replace('Unidade de Tratamento - ', '')
-                .replace('Unidade de Distribuição - ', '')
-                .replace('Unidade de Logística Integrada - ', '')
-                .replace('Agência dos Correios - ', '')
-                .replace('/', '-').toUpperCase()
-                .replace(' - ', '-')
-              status = `Saiu de ${origem}`
+
+              if (evento.subStatus && evento.subStatus.length > 1) {
+                const origem = evento.subStatus[0].replace('Origem: ', '')
+                  .replace('Unidade de Tratamento - ', '')
+                  .replace('Unidade de Distribuição - ', '')
+                  .replace('Unidade de Logística Integrada - ', '')
+                  .replace('Agência dos Correios - ', '')
+                  .replace('/', '-').toUpperCase()
+                  .replace(' - ', '-')
+                const destino = evento.subStatus[1].replace('Destino: ', '')
+                  .replace('Unidade de Tratamento - ', '')
+                  .replace('Unidade de Distribuição - ', '')
+                  .replace('Unidade de Logística Integrada - ', '')
+                  .replace('Agência dos Correios - ', '')
+                  .replace('/', '-').toUpperCase()
+                  .replace(' - ', '-')
+                status = `De ${origem} para ${destino}`
+              } else {
+                const origem = evento.local
+                  .replace('Unidade de Tratamento - ', '')
+                  .replace('Unidade de Distribuição - ', '')
+                  .replace('Unidade de Logística Integrada - ', '')
+                  .replace('Agência dos Correios - ', '')
+                  .replace('/', '-').toUpperCase()
+                  .replace(' - ', '-')
+
+                status = `Saiu de ${origem}`
+              }
               break;
             case 'Fiscalização aduaneira concluída - aguardando pagamento':
               status = 'Aguardando Pagamento'
