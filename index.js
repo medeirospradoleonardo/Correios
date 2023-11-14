@@ -1,14 +1,15 @@
 const axios = require('axios')
 
-async function request(url, options) {
+async function request(url, options, i) {
   return new Promise((resolve, reject) => {
     axios({ ...options, url: url })
       .then(response => {
-        return resolve(response);
+        resolve(response);
       })
       .catch(error => {
-        reject(error);
+        resolve(error)
       });
+
   });
 }
 
@@ -18,70 +19,141 @@ const getStringFiltered = (s) => {
 
 let rastreios = []
 
-const codigos = ['LB581600726HK', 'NL991230875BR']
+const codigos = ['LB581604229HK', 'NB886412396BR']
 
 const index = async () => {
-  rastreios = await Promise.all(codigos.map(async (codigo) => (
-    await request(`https://www.websro.com.br/rastreamento-correios.php?P_COD_UNI=${codigo}`, {
-      method: 'GET',
-      headers: {
-        'content-type': 'text/xml',
-        'user-agent': 'Dart/2.18 (dart:io)',
-      }
-    }).then(async (body) => {
 
-      if (body.data.split('<li>Status: <b>').length > 1) {
-        let status = body.data.split('<li>Status: <b>')[1].split('</b></li>')[0]
-        switch (status) {
-          case 'Objeto em trânsito - por favor aguarde':
-            const origem = body.data.split('<li>Origem: ')[1].split('</li>')[0]
-              .replace('Unidade de Tratamento - ', '')
-              .replace('Unidade de Distribuição - ', '')
-              .replace('Agência dos Correios - ', '')
-              .replace(/( )+/g, ' ').replace(' / ', '-').toUpperCase()
+  // solucao websro
+  // rastreios = await Promise.all(codigos.map(async (codigo) => (
+  //   await request(`https://www.websro.com.br/rastreamento-correios.php?P_COD_UNI=${codigo}`, {
+  //     method: 'GET',
+  //     headers: {
+  //       'content-type': 'text/xml',
+  //       'user-agent': 'Dart/2.18 (dart:io)',
+  //     }
+  //   }).then(async (body) => {
 
-            const destino = body.data.split('<li>Destino: ')[1].split('</li>')[0]
-              .replace('Unidade de Tratamento - ', '')
-              .replace('Unidade de Distribuição - ', '')
-              .replace('Agência dos Correios - ', '')
-              .replace(/( )+/g, ' ').replace(' / ', '-').toUpperCase()
+  //     if (body.data.split('<li>Status: <b>').length > 1) {
+  //       let status = body.data.split('<li>Status: <b>')[1].split('</b></li>')[0]
+  //       switch (status) {
+  //         case 'Objeto em trânsito - por favor aguarde':
+  //           const origem = body.data.split('<li>Origem: ')[1].split('</li>')[0]
+  //             .replace('Unidade de Tratamento - ', '')
+  //             .replace('Unidade de Distribuição - ', '')
+  //             .replace('Agência dos Correios - ', '')
+  //             .replace(/( )+/g, ' ').replace(' / ', '-').toUpperCase()
 
-            status = `De ${origem} para ${destino}`
-            break;
-          case 'Fiscalização aduaneira concluída - aguardando pagamento':
-            status = 'Aguardando Pagamento'
-            break
-          default:
-            break;
+  //           const destino = body.data.split('<li>Destino: ')[1].split('</li>')[0]
+  //             .replace('Unidade de Tratamento - ', '')
+  //             .replace('Unidade de Distribuição - ', '')
+  //             .replace('Agência dos Correios - ', '')
+  //             .replace(/( )+/g, ' ').replace(' / ', '-').toUpperCase()
+
+  //           status = `De ${origem} para ${destino}`
+  //           break;
+  //         case 'Fiscalização aduaneira concluída - aguardando pagamento':
+  //           status = 'Aguardando Pagamento'
+  //           break
+  //         case 'Objeto está em rota de entrega':
+  //           status = 'Objeto saiu para entrega ao destinatário'
+  //           break
+  //         default:
+  //           break;
+  //       }
+  //       return (
+  //         {
+  //           "eventos": [
+  //             {
+  //               "descricao": status
+  //             }
+  //           ]
+
+  //         }
+  //       )
+  //     } else {
+  //       return (
+  //         {
+  //           "eventos": null
+  //         }
+  //       )
+  //     }
+  //   }).catch(() => {
+  //     return (
+  //       {
+  //         "eventos": null
+  //       }
+  //     )
+  //   })
+  // )))
+
+  for (let codigo of codigos) {
+    let newData = 'Too Many Requests'
+    while (newData.includes('Too Many Requests')) {
+      const res = await request(`https://api.linketrack.com/track/json?user=teste&token=1abcd00b2731640e886fb41a8a9671ad1434c599dbaa0a0de9a5aa619f29a83f&codigo=${codigo}`, {
+        method: 'GET',
+        headers: {
+          'content-type': 'text/xml',
+          'user-agent': 'Dart/2.18 (dart:io)',
         }
-        return (
-          {
-            "eventos": [
-              {
-                "descricao": status
-              }
-            ]
+      })
 
-          }
-        )
+
+      if (res.response) {
+        newData = res.response.data
       } else {
-        return (
-          {
-            "eventos": null
-          }
-        )
-      }
-    }).catch(() => {
-      return (
-        {
-          "eventos": null
-        }
-      )
-    })
-  )))
+        newData = ''
+        if (res.data.eventos.length > 0) {
+          let evento = res.data.eventos.reduce(function (a, b) {
+            return new Date(`${a.data.split("/").reverse().join("/").replaceAll('/', '-')}T${a.hora}`) > new Date(`${b.data.split("/").reverse().join("/").replaceAll('/', '-')}T${b.hora}`) ?
+              a : b;
+          })
 
-  console.log(rastreios[0].eventos[0])
-  console.log(rastreios[1].eventos[0])
+          let status = evento.status
+
+          switch (status) {
+            case 'Objeto encaminhado':
+              const origem = evento.local
+                .replace('Unidade de Tratamento - ', '')
+                .replace('Unidade de Distribuição - ', '')
+                .replace('Unidade de Logística Integrada - ', '')
+                .replace('Agência dos Correios - ', '')
+                .replace('/', '-').toUpperCase()
+                .replace(' - ', '-')
+              status = `Saiu de ${origem}`
+              break;
+            case 'Fiscalização aduaneira concluída - aguardando pagamento':
+              status = 'Aguardando Pagamento'
+              break
+            case 'Objeto está em rota de entrega':
+              status = 'Objeto saiu para entrega ao destinatário'
+              break
+            default:
+              break;
+          }
+          rastreios.push(
+            {
+              "eventos": [
+                {
+                  "descricao": status
+                }
+              ]
+
+            }
+          )
+
+        } else {
+          rastreios.push(
+            {
+              "eventos": null
+            }
+          )
+        }
+      }
+    }
+  }
+
+  console.log(rastreios[0].eventos)
+  console.log(rastreios[1].eventos)
 }
 
 index()
