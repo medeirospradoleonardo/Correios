@@ -111,28 +111,51 @@ const index = async () => {
           let status = evento.status
           switch (status) {
             case 'Objeto encaminhado':
-
-              const origem = evento.local
-                .replace('Unidade de Tratamento - ', '')
-                .replace('Unidade de Distribuição - ', '')
-                .replace('Unidade de Logística Integrada - ', '')
-                .replace('Agência dos Correios - ', '')
-                .replace('Destino: ', '')
-                .replace('/', '-').toUpperCase()
-                .replace(' - ', '-')
-
+              let origem = 'CURITIBA-PR'
               let destino = 'BAURU-SP'
 
+              if (evento.local.includes('Destino: ')) {
+                destino = evento.local
+                  .replace('Unidade de Tratamento - ', '')
+                  .replace('Unidade de Distribuição - ', '')
+                  .replace('Unidade de Logística Integrada - ', '')
+                  .replace('Agência dos Correios - ', '')
+                  .replace('Destino: ', '')
+                  .replace('/', '-').toUpperCase()
+                  .replace(' - ', '-')
 
-              switch (origem) {
-                case 'INDAIATUBA-SP':
-                  destino = 'BAURU-SP'
-                  break
-                case 'BAURU-SP':
-                  destino = 'PENAPOLIS-SP'
-                  break
-                default:
-                  break;
+                switch (destino) {
+                  case 'INDAIATUBA-SP':
+                    origem = 'CURITIBA-PR'
+                    break
+                  case 'BAURU-SP':
+                    origem = 'CURITIBA-PR'
+                  case 'PENAPOLIS-SP':
+                    origem = 'BAURU-SP'
+                    break
+                  default:
+                    break;
+
+                }
+              } else {
+                origem = evento.local
+                  .replace('Unidade de Tratamento - ', '')
+                  .replace('Unidade de Distribuição - ', '')
+                  .replace('Unidade de Logística Integrada - ', '')
+                  .replace('Agência dos Correios - ', '')
+                  .replace('/', '-').toUpperCase()
+                  .replace(' - ', '-')
+
+                switch (origem) {
+                  case 'INDAIATUBA-SP':
+                    destino = 'BAURU-SP'
+                    break
+                  case 'BAURU-SP':
+                    destino = 'PENAPOLIS-SP'
+                    break
+                  default:
+                    break;
+                }
               }
 
               status = `De ${origem} para ${destino}`
