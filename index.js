@@ -117,6 +117,7 @@ const index = async () => {
                 .replace('Unidade de Distribuição - ', '')
                 .replace('Unidade de Logística Integrada - ', '')
                 .replace('Agência dos Correios - ', '')
+                .replace('Destino: ', '')
                 .replace('/', '-').toUpperCase()
                 .replace(' - ', '-')
 
@@ -124,13 +125,6 @@ const index = async () => {
 
 
               switch (origem) {
-                case 'CURITIBA-PR':
-                  if (evento.local.includes('Unidade de Tratamento - ')) {
-                    destino = 'BAURU-SP'
-                  } else {
-                    destino = 'INDAIATUBA-SP'
-                  }
-                  break
                 case 'INDAIATUBA-SP':
                   destino = 'BAURU-SP'
                   break
