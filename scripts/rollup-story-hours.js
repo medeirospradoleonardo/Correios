@@ -251,14 +251,29 @@ async function main() {
     await getWorkItems(childrenIds)
   ).filter(child => {
     const type =
-      child.fields[
-      "System.WorkItemType"
-      ];
+      child.fields["System.WorkItemType"];
 
     return (
+      child.id !== storyId &&
       type !== "User Story" &&
-      type !==
-      "Product Backlog Item"
+      type !== "Product Backlog Item"
+    );
+  });
+
+  console.log(
+    "Children returned by Azure:"
+  );
+
+  children.forEach(child => {
+    console.log(
+      `#${child.id} | ${child.fields["System.WorkItemType"]
+      } | Original=${child.fields[
+      "Microsoft.VSTS.Scheduling.OriginalEstimate"
+      ] || 0
+      } | Remaining=${child.fields[
+      "Microsoft.VSTS.Scheduling.RemainingWork"
+      ] || 0
+      }`
     );
   });
 
