@@ -232,6 +232,24 @@ async function updateStory(
   }
 }
 
+function isRollupUpdate(payload) {
+  const fields =
+    payload.resource?.fields || {};
+
+  const changedFields =
+    Object.keys(fields);
+
+  return (
+    changedFields.length > 0 &&
+    changedFields.every(field =>
+      [
+        "Microsoft.VSTS.Scheduling.OriginalEstimate",
+        "Microsoft.VSTS.Scheduling.RemainingWork"
+      ].includes(field)
+    )
+  );
+}
+
 async function main() {
   console.log(
     `Processing Work Item ${workItemId}`
@@ -263,7 +281,6 @@ async function main() {
     type === "User Story" ||
     type === "Product Backlog Item"
   ) {
-
     if (isRollupUpdate(payload)) {
       console.log(
         "Rollup update detected. Ignoring."
@@ -271,15 +288,37 @@ async function main() {
       return;
     }
 
+    const relations =
+      payload.resource?.relations || {};
+
+    const hierarchyChanged =
+      relations.added?.some(
+        relation =>
+          relation.rel ===
+          "System.LinkTypes.Hierarchy-Forward"
+      ) ||
+      relations.removed?.some(
+        relation =>
+          relation.rel ===
+          "System.LinkTypes.Hierarchy-Forward"
+      );
+
+    if (!hierarchyChanged) {
+      console.log(
+        "Story updated but no child relationship changed."
+      );
+      return;
+    }
+
     console.log(
-      "Story relationship update detected."
+      "Story child relationship changed."
     );
 
     storyId = workItem.id;
   }
   else {
     console.log(
-      "Unsupported work item type."
+      `Unsupported work item type: ${type}`
     );
     return;
   }
@@ -316,6 +355,10 @@ async function main() {
     );
   });
 
+  console.log(
+    `Children found: ${children.length}`
+  );
+
   let totalOriginal = 0;
   let totalRemaining = 0;
 
@@ -331,7 +374,7 @@ async function main() {
       ] || 0;
 
     console.log(
-      `#${child.id} Original=${original} Remaining=${remaining}`
+      `#${child.id} | ${child.fields["System.WorkItemType"]} | Original=${original} | Remaining=${remaining}`
     );
 
     totalOriginal += original;
