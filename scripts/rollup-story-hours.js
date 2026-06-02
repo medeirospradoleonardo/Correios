@@ -209,32 +209,8 @@ async function main() {
     `Processing Work Item ${workItemId}`
   );
 
-  const workItem =
-    await getWorkItem(workItemId);
-
-  const workItemType =
-    workItem.fields[
-    "System.WorkItemType"
-    ];
-
-  console.log(
-    `Work Item Type: ${workItemType}`
-  );
-
-  // evita loop
-  if (
-    workItemType === "User Story" ||
-    workItemType ===
-    "Product Backlog Item"
-  ) {
-    console.log(
-      "Story/PBI event ignored."
-    );
-    return;
-  }
-
   const storyId =
-    await findParentStoryWithRetry(workItem.id);
+    await findParentStoryWithRetry(workItemId);
 
   if (!storyId) {
     console.log(
