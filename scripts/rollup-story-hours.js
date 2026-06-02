@@ -205,19 +205,21 @@ async function updateStory(
 }
 
 async function main() {
-  console.log(
-    `Processing Work Item ${workItemId}`
-  );
+  // console.log(
+  //   `Processing Work Item ${workItemId}`
+  // );
 
-  const storyId =
-    await findParentStoryWithRetry(workItemId);
+  // const storyId =
+  //   await findParentStoryWithRetry(workItemId);
 
-  if (!storyId) {
-    console.log(
-      "No parent story found."
-    );
-    return;
-  }
+  // if (!storyId) {
+  //   console.log(
+  //     "No parent story found."
+  //   );
+  //   return;
+  // }
+
+  const storyId = workItemId;
 
   console.log(`Story ID: ${storyId}`);
 
