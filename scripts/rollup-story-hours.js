@@ -8,6 +8,7 @@ console.log(
 );
 
 const workItemId =
+  payload.resource?.id ||
   payload.resource?.workItemId ||
   payload.id;
 
@@ -41,6 +42,7 @@ async function request(url, options = {}) {
 
   if (!response.ok) {
     const errorText = await response.text();
+
     throw new Error(
       `Request failed (${response.status}): ${errorText}`
     );
@@ -56,16 +58,28 @@ async function getWorkItem(id) {
 }
 
 async function findParentStory(workItem) {
+  console.log(
+    "Relations:",
+    JSON.stringify(
+      workItem.relations || [],
+      null,
+      2
+    )
+  );
+
   const parentRelation = workItem.relations?.find(
     relation =>
-      relation.rel === "System.LinkTypes.Hierarchy-Reverse"
+      relation.rel ===
+      "System.LinkTypes.Hierarchy-Reverse"
   );
 
   if (!parentRelation) {
     return null;
   }
 
-  return Number(parentRelation.url.split("/").pop());
+  return Number(
+    parentRelation.url.split("/").pop()
+  );
 }
 
 async function getChildrenIds(parentId) {
@@ -79,7 +93,8 @@ async function getChildrenIds(parentId) {
       )
       AND
       (
-        [System.Links.LinkType] = 'System.LinkTypes.Hierarchy-Forward'
+        [System.Links.LinkType] =
+          'System.LinkTypes.Hierarchy-Forward'
       )
       MODE (MustContain)
     `
@@ -95,8 +110,8 @@ async function getChildrenIds(parentId) {
 
   return (
     result.workItemRelations
-      ?.filter(relation => relation.target)
-      .map(relation => relation.target.id) || []
+      ?.filter(r => r.target)
+      .map(r => r.target.id) || []
   );
 }
 
@@ -117,6 +132,35 @@ async function updateStory(
   totalOriginal,
   totalRemaining
 ) {
+  const story = await getWorkItem(storyId);
+
+  const currentOriginal =
+    story.fields[
+    "Microsoft.VSTS.Scheduling.OriginalEstimate"
+    ] || 0;
+
+  const currentRemaining =
+    story.fields[
+    "Microsoft.VSTS.Scheduling.RemainingWork"
+    ] || 0;
+
+  console.log(
+    `Current Story Original: ${currentOriginal}`
+  );
+  console.log(
+    `Current Story Remaining: ${currentRemaining}`
+  );
+
+  if (
+    currentOriginal === totalOriginal &&
+    currentRemaining === totalRemaining
+  ) {
+    console.log(
+      "Story already has correct values. Skipping update."
+    );
+    return;
+  }
+
   const patch = [
     {
       op: "add",
@@ -138,14 +182,16 @@ async function updateStory(
       method: "PATCH",
       headers: {
         Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json-patch+json"
+        "Content-Type":
+          "application/json-patch+json"
       },
       body: JSON.stringify(patch)
     }
   );
 
   if (!response.ok) {
-    const errorText = await response.text();
+    const errorText =
+      await response.text();
 
     throw new Error(
       `Failed updating Story (${response.status}): ${errorText}`
@@ -154,60 +200,107 @@ async function updateStory(
 }
 
 async function main() {
-  console.log(`Processing Work Item ${workItemId}`);
+  console.log(
+    `Processing Work Item ${workItemId}`
+  );
 
-  const workItem = await getWorkItem(workItemId);
+  const workItem =
+    await getWorkItem(workItemId);
 
   const workItemType =
-    workItem.fields["System.WorkItemType"];
+    workItem.fields[
+    "System.WorkItemType"
+    ];
 
-  console.log(`Type: ${workItemType}`);
+  console.log(
+    `Work Item Type: ${workItemType}`
+  );
 
-  // Ignora alterações feitas diretamente na Story
+  // evita loop
   if (
     workItemType === "User Story" ||
-    workItemType === "Product Backlog Item"
+    workItemType ===
+    "Product Backlog Item"
   ) {
     console.log(
-      "Event came from a Story/PBI. Skipping to avoid recursion."
+      "Story/PBI event ignored."
     );
     return;
   }
 
-  const storyId = await findParentStory(workItem);
+  const storyId =
+    await findParentStory(workItem);
 
   if (!storyId) {
-    console.log("No parent story found.");
+    console.log(
+      "No parent story found."
+    );
     return;
   }
 
   console.log(`Story ID: ${storyId}`);
 
-  const childrenIds = await getChildrenIds(storyId);
+  const childrenIds =
+    await getChildrenIds(storyId);
 
   console.log(
-    `Found ${childrenIds.length} child work items`
+    "Children IDs:",
+    JSON.stringify(childrenIds)
   );
 
-  const children = await getWorkItems(childrenIds);
+  const children = (
+    await getWorkItems(childrenIds)
+  ).filter(child => {
+    const type =
+      child.fields[
+      "System.WorkItemType"
+      ];
+
+    return (
+      type !== "User Story" &&
+      type !==
+      "Product Backlog Item"
+    );
+  });
+
+  console.log(
+    `Children found: ${children.length}`
+  );
 
   let totalOriginal = 0;
   let totalRemaining = 0;
 
   for (const child of children) {
-    totalOriginal +=
+    const original =
       child.fields[
       "Microsoft.VSTS.Scheduling.OriginalEstimate"
       ] || 0;
 
-    totalRemaining +=
+    const remaining =
       child.fields[
       "Microsoft.VSTS.Scheduling.RemainingWork"
       ] || 0;
+
+    console.log({
+      id: child.id,
+      type: child.fields[
+        "System.WorkItemType"
+      ],
+      original,
+      remaining
+    });
+
+    totalOriginal += original;
+    totalRemaining += remaining;
   }
 
-  console.log(`Total Original: ${totalOriginal}`);
-  console.log(`Total Remaining: ${totalRemaining}`);
+  console.log(
+    `Calculated Original: ${totalOriginal}`
+  );
+
+  console.log(
+    `Calculated Remaining: ${totalRemaining}`
+  );
 
   await updateStory(
     storyId,
@@ -215,7 +308,9 @@ async function main() {
     totalRemaining
   );
 
-  console.log("Story updated successfully.");
+  console.log(
+    "Story updated successfully."
+  );
 }
 
 main().catch(error => {
