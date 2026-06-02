@@ -1,0 +1,53 @@
+trigger: none
+
+resources:
+  webhooks:
+    - webhook: Rollup
+      connection: Rollup
+
+pool:
+  name: Default
+
+steps:
+- checkout: self
+
+- script: |
+    echo "${PAYLOAD}"
+  env:
+    PAYLOAD: ${{ convertToJson(parameters) }}
+  displayName: "Debug Payload"
+
+- script: |
+    path="${RESOURCE_PATH}"
+
+    if [[ "$EVENT_TYPE" == "workitem.updated" ]]; then
+      path="${REVISION_PATH}"
+    fi
+
+    workItemId=$(echo "$path" | jq -r '.id')
+
+    echo "WORK_ITEM_ID=${workItemId}"
+
+    echo "##vso[task.setvariable variable=WORK_ITEM_ID]${workItemId}"
+  env:
+    EVENT_TYPE: ${{ parameters.Rollup.eventType }}
+    RESOURCE_PATH: ${{ convertToJson(parameters.Rollup.resource) }}
+    REVISION_PATH: ${{ convertToJson(parameters.Rollup.resource.revision) }}
+  displayName: "Extract Work Item"
+
+- task: NodeTool@0
+  inputs:
+    versionSpec: '20.x'
+
+- script: |
+    npm ci
+  displayName: "Install Dependencies"
+
+- script: |
+    node scripts/rollup-story-hours.js
+  env:
+    AZDO_ORG_URL: $(System.CollectionUri)
+    AZDO_PROJECT: $(System.TeamProject)
+    SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+    WORK_ITEM_ID: $(WORK_ITEM_ID)
+  displayName: "Rollup Story Hours"
