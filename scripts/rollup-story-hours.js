@@ -9,6 +9,7 @@ console.log(
 
 const workItemId =
   payload.resource?.workItemId ||
+  payload.resource?.id ||
   payload.id;
 
 const orgUrl = process.env.AZDO_ORG_URL;
