@@ -8,7 +8,6 @@ console.log(
 );
 
 const workItemId =
-  payload.resource?.id ||
   payload.resource?.workItemId ||
   payload.id;
 
