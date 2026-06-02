@@ -20,8 +20,8 @@ steps:
 
   - script: |
       echo Installing dependencies...
-      npm ci
-    displayName: "Install Dependencies"
+      npm install
+    displayName: Install Dependencies
 
   - script: |
       node scripts/rollup-story-hours.js
