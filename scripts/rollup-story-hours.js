@@ -121,12 +121,14 @@ async function updateStory(
   const patch = [
     {
       op: "add",
-      path: "/fields/Custom.TotalOriginalEstimate",
+      path:
+        "/fields/Microsoft.VSTS.Scheduling.OriginalEstimate",
       value: totalOriginal
     },
     {
       op: "add",
-      path: "/fields/Custom.TotalRemainingWork",
+      path:
+        "/fields/Microsoft.VSTS.Scheduling.RemainingWork",
       value: totalRemaining
     }
   ];
@@ -145,6 +147,7 @@ async function updateStory(
 
   if (!response.ok) {
     const errorText = await response.text();
+
     throw new Error(
       `Failed updating Story (${response.status}): ${errorText}`
     );
