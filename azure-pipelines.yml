@@ -28,7 +28,7 @@ steps:
       Write-Host $env:WEBHOOK_PAYLOAD
     displayName: 'Debug Payload'
     env:
-      WEBHOOK_PAYLOAD: '${{ convertToJson(resources.webhooks.Rollup) }}'
+      WEBHOOK_PAYLOAD: '${{ convertToJson(parameters.Rollup) }}'
 
   - script: |
       node scripts/rollup-story-hours.js
@@ -37,4 +37,4 @@ steps:
       SYSTEM_ACCESSTOKEN: $(System.AccessToken)
       AZDO_ORG_URL: $(System.CollectionUri)
       AZDO_PROJECT: $(System.TeamProject)
-      WEBHOOK_PAYLOAD: '${{ convertToJson(resources.webhooks.Rollup) }}'
+      WEBHOOK_PAYLOAD: '${{ convertToJson(parameters.Rollup) }}'
