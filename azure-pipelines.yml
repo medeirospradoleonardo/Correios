@@ -18,11 +18,6 @@ steps:
       npm --version
     displayName: 'Validate Agent'
 
-  - script: |
-      echo Installing dependencies...
-      npm install
-    displayName: 'Install Dependencies'
-
   - powershell: |
       Write-Host "Webhook Payload:"
       Write-Host $env:WEBHOOK_PAYLOAD
