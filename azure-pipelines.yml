@@ -35,9 +35,7 @@ steps:
     REVISION_PATH: ${{ convertToJson(parameters.Rollup.resource.revision) }}
   displayName: "Extract Work Item"
 
-- task: NodeTool@0
-  inputs:
-    versionSpec: '20.x'
+- script: node --version
 
 - script: |
     npm ci
