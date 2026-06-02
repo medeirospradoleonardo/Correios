@@ -9,8 +9,7 @@ console.log(
 
 const workItemId =
   payload.resource?.workItemId ||
-  payload.resource?.id ||
-  payload.id;
+  payload.resource?.id;
 
 const orgUrl = process.env.AZDO_ORG_URL;
 const project = process.env.AZDO_PROJECT;
@@ -18,7 +17,7 @@ const token = process.env.SYSTEM_ACCESSTOKEN;
 
 if (!workItemId) {
   throw new Error(
-    "Unable to determine Work Item Id from webhook payload."
+    "Unable to determine Work Item Id."
   );
 }
 
@@ -58,27 +57,35 @@ async function getWorkItem(id) {
 }
 
 async function wait(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise(resolve =>
+    setTimeout(resolve, ms)
+  );
 }
 
-async function findParentStoryWithRetry(workItemId) {
+async function findParentStoryWithRetry(
+  workItemId
+) {
   for (let attempt = 1; attempt <= 5; attempt++) {
-    const workItem = await getWorkItem(workItemId);
+    const workItem =
+      await getWorkItem(workItemId);
 
-    const parentRelation = workItem.relations?.find(
-      relation =>
-        relation.rel ===
-        "System.LinkTypes.Hierarchy-Reverse"
-    );
+    const parentRelation =
+      workItem.relations?.find(
+        relation =>
+          relation.rel ===
+          "System.LinkTypes.Hierarchy-Reverse"
+      );
 
     if (parentRelation) {
       return Number(
-        parentRelation.url.split("/").pop()
+        parentRelation.url
+          .split("/")
+          .pop()
       );
     }
 
     console.log(
-      `Parent not found. Retry ${attempt}/5...`
+      `Parent not found. Retry ${attempt}/5`
     );
 
     await wait(3000);
@@ -99,7 +106,7 @@ async function getChildrenIds(parentId) {
       AND
       (
         [System.Links.LinkType] =
-          'System.LinkTypes.Hierarchy-Forward'
+        'System.LinkTypes.Hierarchy-Forward'
       )
       MODE (MustContain)
     `
@@ -132,12 +139,32 @@ async function getWorkItems(ids) {
   return result.value;
 }
 
+function isRollupUpdate(payload) {
+  const changedFields =
+    payload.resource?.fields || {};
+
+  const keys =
+    Object.keys(changedFields);
+
+  return (
+    keys.length > 0 &&
+    keys.every(
+      key =>
+        key ===
+        "Microsoft.VSTS.Scheduling.OriginalEstimate" ||
+        key ===
+        "Microsoft.VSTS.Scheduling.RemainingWork"
+    )
+  );
+}
+
 async function updateStory(
   storyId,
   totalOriginal,
   totalRemaining
 ) {
-  const story = await getWorkItem(storyId);
+  const story =
+    await getWorkItem(storyId);
 
   const currentOriginal =
     story.fields[
@@ -150,10 +177,11 @@ async function updateStory(
     ] || 0;
 
   console.log(
-    `Current Story Original: ${currentOriginal}`
+    `Current Original: ${currentOriginal}`
   );
+
   console.log(
-    `Current Story Remaining: ${currentRemaining}`
+    `Current Remaining: ${currentRemaining}`
   );
 
   if (
@@ -161,7 +189,7 @@ async function updateStory(
     currentRemaining === totalRemaining
   ) {
     console.log(
-      "Story already has correct values. Skipping update."
+      "Story already synchronized."
     );
     return;
   }
@@ -205,21 +233,63 @@ async function updateStory(
 }
 
 async function main() {
-  // console.log(
-  //   `Processing Work Item ${workItemId}`
-  // );
+  console.log(
+    `Processing Work Item ${workItemId}`
+  );
 
-  // const storyId =
-  //   await findParentStoryWithRetry(workItemId);
+  const workItem =
+    await getWorkItem(workItemId);
 
-  // if (!storyId) {
-  //   console.log(
-  //     "No parent story found."
-  //   );
-  //   return;
-  // }
+  const type =
+    workItem.fields[
+    "System.WorkItemType"
+    ];
 
-  const storyId = workItemId;
+  console.log(`Type: ${type}`);
+
+  let storyId;
+
+  if (type === "Task") {
+    console.log(
+      "Task event detected."
+    );
+
+    storyId =
+      await findParentStoryWithRetry(
+        workItem.id
+      );
+  }
+  else if (
+    type === "User Story" ||
+    type === "Product Backlog Item"
+  ) {
+
+    if (isRollupUpdate(payload)) {
+      console.log(
+        "Rollup update detected. Ignoring."
+      );
+      return;
+    }
+
+    console.log(
+      "Story relationship update detected."
+    );
+
+    storyId = workItem.id;
+  }
+  else {
+    console.log(
+      "Unsupported work item type."
+    );
+    return;
+  }
+
+  if (!storyId) {
+    console.log(
+      "No parent story found."
+    );
+    return;
+  }
 
   console.log(`Story ID: ${storyId}`);
 
@@ -234,36 +304,17 @@ async function main() {
   const children = (
     await getWorkItems(childrenIds)
   ).filter(child => {
-    const type =
-      child.fields["System.WorkItemType"];
+    const childType =
+      child.fields[
+      "System.WorkItemType"
+      ];
 
     return (
-      child.id !== storyId &&
-      type !== "User Story" &&
-      type !== "Product Backlog Item"
+      childType !== "User Story" &&
+      childType !==
+      "Product Backlog Item"
     );
   });
-
-  console.log(
-    "Children returned by Azure:"
-  );
-
-  children.forEach(child => {
-    console.log(
-      `#${child.id} | ${child.fields["System.WorkItemType"]
-      } | Original=${child.fields[
-      "Microsoft.VSTS.Scheduling.OriginalEstimate"
-      ] || 0
-      } | Remaining=${child.fields[
-      "Microsoft.VSTS.Scheduling.RemainingWork"
-      ] || 0
-      }`
-    );
-  });
-
-  console.log(
-    `Children found: ${children.length}`
-  );
 
   let totalOriginal = 0;
   let totalRemaining = 0;
@@ -279,14 +330,9 @@ async function main() {
       "Microsoft.VSTS.Scheduling.RemainingWork"
       ] || 0;
 
-    console.log({
-      id: child.id,
-      type: child.fields[
-        "System.WorkItemType"
-      ],
-      original,
-      remaining
-    });
+    console.log(
+      `#${child.id} Original=${original} Remaining=${remaining}`
+    );
 
     totalOriginal += original;
     totalRemaining += remaining;
