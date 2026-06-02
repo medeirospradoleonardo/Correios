@@ -1,14 +1,31 @@
-const workItemId = process.env.WORK_ITEM_ID;
+const payload = JSON.parse(
+  process.env.WEBHOOK_PAYLOAD || "{}"
+);
+
+console.log(
+  "Received payload:",
+  JSON.stringify(payload, null, 2)
+);
+
+const workItemId =
+  payload.resource?.id ||
+  payload.resource?.workItemId ||
+  payload.id;
+
 const orgUrl = process.env.AZDO_ORG_URL;
 const project = process.env.AZDO_PROJECT;
 const token = process.env.SYSTEM_ACCESSTOKEN;
 
 if (!workItemId) {
-  throw new Error("WORK_ITEM_ID not informed.");
+  throw new Error(
+    "Unable to determine Work Item Id from webhook payload."
+  );
 }
 
 if (!token) {
-  throw new Error("SYSTEM_ACCESSTOKEN not informed.");
+  throw new Error(
+    "SYSTEM_ACCESSTOKEN not informed."
+  );
 }
 
 const apiBase = `${orgUrl}${project}/_apis`;
