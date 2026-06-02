@@ -56,29 +56,34 @@ async function getWorkItem(id) {
   );
 }
 
-async function findParentStory(workItem) {
-  console.log(
-    "Relations:",
-    JSON.stringify(
-      workItem.relations || [],
-      null,
-      2
-    )
-  );
+async function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
-  const parentRelation = workItem.relations?.find(
-    relation =>
-      relation.rel ===
-      "System.LinkTypes.Hierarchy-Reverse"
-  );
+async function findParentStoryWithRetry(workItemId) {
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    const workItem = await getWorkItem(workItemId);
 
-  if (!parentRelation) {
-    return null;
+    const parentRelation = workItem.relations?.find(
+      relation =>
+        relation.rel ===
+        "System.LinkTypes.Hierarchy-Reverse"
+    );
+
+    if (parentRelation) {
+      return Number(
+        parentRelation.url.split("/").pop()
+      );
+    }
+
+    console.log(
+      `Parent not found. Retry ${attempt}/5...`
+    );
+
+    await wait(3000);
   }
 
-  return Number(
-    parentRelation.url.split("/").pop()
-  );
+  return null;
 }
 
 async function getChildrenIds(parentId) {
@@ -228,7 +233,7 @@ async function main() {
   }
 
   const storyId =
-    await findParentStory(workItem);
+    await findParentStoryWithRetry(workItem.id);
 
   if (!storyId) {
     console.log(
