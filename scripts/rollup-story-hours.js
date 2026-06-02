@@ -161,16 +161,20 @@ async function main() {
   const workItemType =
     workItem.fields["System.WorkItemType"];
 
-  let storyId;
+  console.log(`Type: ${workItemType}`);
 
+  // Ignora alterações feitas diretamente na Story
   if (
     workItemType === "User Story" ||
     workItemType === "Product Backlog Item"
   ) {
-    storyId = workItem.id;
-  } else {
-    storyId = await findParentStory(workItem);
+    console.log(
+      "Event came from a Story/PBI. Skipping to avoid recursion."
+    );
+    return;
   }
+
+  const storyId = await findParentStory(workItem);
 
   if (!storyId) {
     console.log("No parent story found.");
